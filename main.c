@@ -8,8 +8,8 @@ enum MutationType {ISM = 0, IVM = 1, SM = 2, Random = 3};
 
 struct city{
     int city_id;
-    int x_coordinate;
-    int y_coordinate;
+    float x_coordinate;
+    float y_coordinate;
 };
 
 struct individual{
@@ -31,23 +31,23 @@ double calculate_distance(struct city* city1, struct city* city2){
     return distance;
 }
 
-void initialize_with_nearest_neighbor(struct population* pop, struct city* cities, double percentage){
-
-    int create_n_random = pop->population_count * percentage;
-    srand(time(NULL));
-
-    for(int i = 0; i< create_n_random; i++){
-        int random = rand() % 280;
-
-        for(int j = 0; j< 270 ;j++){
-            pop->individuals[i].cities[j] = cities[r[j]];
-
-        }
-
-    }
-
-
-}
+//void initialize_with_nearest_neighbor(struct population* pop, struct city* cities, double percentage){
+//
+//    int create_n_random = pop->population_count * percentage;
+//    srand(time(NULL));
+//
+//    for(int i = 0; i< create_n_random; i++){
+//        int random = rand() % 280;
+//
+//        for(int j = 0; j< 270 ;j++){
+//            pop->individuals[i].cities[j] = cities[r[j]];
+//
+//        }
+//
+//    }
+//
+//
+//}
 
 void initialize_randomly(struct population* pop, struct city* cities, double percentage){
 
@@ -128,7 +128,7 @@ int main(int argc, char *argv[]){
             continue;
         struct city *n= (struct city*)malloc(sizeof(struct city));
 
-        if ( ( sscanf ( line, "%d %d %d"
+        if ( ( sscanf ( line, "%d %f %f"
                 , &n->city_id, &n->x_coordinate, &n->y_coordinate)) == 3){
             cities[i] = *n;
             i++;
@@ -148,7 +148,7 @@ int main(int argc, char *argv[]){
     //Initialize half of the population randomly
     initialize_randomly(pop, cities, 0.5);
     //struct city* tour = (struct city*)malloc( 280 * sizeof(struct city));
-    initialize_with_nearest_neighbor(pop, cities, 0.5);
+    //initialize_with_nearest_neighbor(pop, cities, 0.5);
 
 
 
