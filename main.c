@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
+#include <string.h>
 
+const int BIGINT = 9999999;
 enum CrossOverType {OX = 0, SCX = 1};
 enum MutationType {ISM = 0, IVM = 1, SM = 2, Random = 3};
 
@@ -22,14 +24,38 @@ struct population{
     int population_count;
 };
 
-double calculate_distance(struct city* city1, struct city* city2){
+float calculate_distance(struct city* city1, struct city* city2){
 
     int x_distance = abs(city1->x_coordinate - city2->x_coordinate);
     int y_distance = abs(city1->y_coordinate - city2->y_coordinate);
-    double distance = sqrt( (x_distance*x_distance) + (y_distance*y_distance) );
+    float distance = sqrt( (x_distance*x_distance) + (y_distance*y_distance) );
 
     return distance;
 }
+
+float** create_distance_matrix(struct city* cities, int dimension){
+    float** distance_m = malloc(dimension * sizeof(float*));
+
+    for (int i = 0; i < dimension; i++) {
+        distance_m[i] = malloc(dimension * sizeof(float));
+
+        for (int j = 0; j < dimension; j++) {
+
+            if (i == j) {
+                distance_m[i][j] = BIGINT;
+                continue;
+            }
+
+            //float tmp = (float) (pow((double) cities[i][0] - c[j][0], 2.0) + pow((double) c[i][1] - c[j][1], 2.0));
+            distance_m[i][j] = calculate_distance(&cities[i], &cities[j]);
+        }
+    }
+
+    return distance_m;
+
+}
+
+
 
 //void initialize_with_nearest_neighbor(struct population* pop, struct city* cities, double percentage){
 //
@@ -119,13 +145,27 @@ int main(int argc, char *argv[]){
         }
     }
 
+    //Distance Matrix
+    float** distance_m;
+
     //Pass cities to struct array
     int i = 0;
     int pass_first_lines = 0;
-
+    int dimension = 0;
+    int dimension_m = 0;
+    const char* section = (char*)malloc(20* sizeof(char));
+    char* s_dimension = "DIMENSION:";
     while ( ( fgets ( line, sizeof ( line), fp))) {
-        if(pass_first_lines++ < 6)
+        if(pass_first_lines++ < 6){
+            if(sscanf ( line, "%s %d"
+                    , section, &dimension) == 2) {
+                if(strcmp(section,s_dimension) == 0){
+                    dimension_m = dimension;
+                }
+            }
             continue;
+        }
+
         struct city *n= (struct city*)malloc(sizeof(struct city));
 
         if ( ( sscanf ( line, "%d %f %f"
@@ -136,7 +176,10 @@ int main(int argc, char *argv[]){
     }
     //close file
     fclose(fp);
-
+    printf("dimension: %d", dimension_m);
+    //Fill Distance Matrix
+    distance_m = create_distance_matrix(cities, dimension);
+    printf("dimension between 1 and 2 is: %f", distance_m[0][1]);
     //Initialize a population;
     struct population* pop = malloc(sizeof(struct population));
     pop->population_count = 50;
