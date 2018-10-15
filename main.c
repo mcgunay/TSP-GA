@@ -149,6 +149,41 @@ float calculate_fitness(struct city* cities, float** distance_m, int dimension){
     return fitness_value;
 }
 
+struct city* perform_order_crossover(struct city* parent1, struct city* parent2, int length, int dimension){
+    struct city* child = malloc(dimension* sizeof(struct city));
+    srand(time(NULL));
+    int crossover_start = rand() % (139);
+    int crossover_end = crossover_start + dimension / 2;
+
+    //First copy subset from parent1
+    for(int i = crossover_start;i<=dimension/2;++i){
+        child[i] = parent1[i];
+    }
+
+    int added_city_count = dimension / 2;
+    int i = crossover_end;
+    while(added_city_count < dimension){
+        //Reaching the last element then return back of the list
+        if(i == dimension)
+            i = 0;
+        int found = 0;
+
+        for(int y = crossover_start; y<crossover_end; ++y){
+            if(parent2[i].city_id == child[y].city_id){
+                found = 1;
+                break;
+            }
+        }
+
+        if(!found){
+            child[i] = parent2[i];
+        }
+        i++;
+    }
+
+    return child;
+}
+
 int main(int argc, char *argv[]){
     //Parameters are set via arg
     int iteration_count = 0;
