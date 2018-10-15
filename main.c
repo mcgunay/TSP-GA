@@ -8,6 +8,11 @@ const int BIGINT = 9999999;
 enum CrossOverType {OX = 0, SCX = 1};
 enum MutationType {ISM = 0, IVM = 1, SM = 2, Random = 3};
 
+typedef struct node {
+    int val;
+    struct node * next;
+} node_t;
+
 struct city{
     int city_id;
     float x_coordinate;
@@ -57,29 +62,57 @@ float** create_distance_matrix(struct city* cities, int dimension){
 
 
 
-//void initialize_with_nearest_neighbor(struct population* pop, struct city* cities, double percentage){
-//
-//    int create_n_random = pop->population_count * percentage;
-//    srand(time(NULL));
-//
-//    for(int i = 0; i< create_n_random; i++){
-//        int random = rand() % 280;
-//
-//        for(int j = 0; j< 270 ;j++){
-//            pop->individuals[i].cities[j] = cities[r[j]];
-//
-//        }
-//
-//    }
-//
-//
-//}
+void initialize_with_nearest_neighbor(struct population* pop, struct city* cities,float** distance_m, double percentage){
+
+    int create_n_random = pop->population_count * percentage;
+    srand(time(NULL));
+
+    for(int i = 25; i< 25 + create_n_random; ++i){
+        int random = rand() % 280;
+        //Put first random city in the list
+        pop->individuals[i].cities[0] = cities[random];
+
+        node_t * head = NULL;
+        head = malloc(sizeof(node_t));
+        head->val = random;
+        head->next = NULL;
+        node_t* last = head;
+        for(int j = 1; j< 279 ;j++){
+            int nearest_neighbor_distance= BIGINT;
+            int nearest_neighbor=0;
+            for(int x = 0; x < 280; ++x){
+                int picked = 0;
+                if(distance_m[random][x] < nearest_neighbor_distance){
+                    node_t * current = head;
+                    while (current != NULL) {
+                        if(x == current->val){
+                           picked = 1;
+                        }
+                        current = current->next;
+                    }
+                    if(0 == picked){
+                        nearest_neighbor_distance = distance_m[random][x];
+                        nearest_neighbor = x;
+                    }
+
+                }
+            }
+            pop->individuals[i].cities[j] = cities[nearest_neighbor];
+            random = nearest_neighbor;
+            node_t* next = malloc(sizeof(node_t));
+            next->val = nearest_neighbor;
+            last->next = next;
+            next->next = NULL;
+            last = next;
+
+        }
+    }
+}
 
 void initialize_randomly(struct population* pop, struct city* cities, double percentage){
 
     int create_n_random = pop->population_count * percentage;
     srand(time(NULL));
-
 
     for(int i = 0; i< create_n_random; i++){
         //int random = rand() % 280;
@@ -103,14 +136,8 @@ void initialize_randomly(struct population* pop, struct city* cities, double per
             pop->individuals[i].cities[j] = cities[r[j]];
 
         }
-
         free(r);
     }
-
-
-
-
-
 }
 
 int main(int argc, char *argv[]){
@@ -177,9 +204,11 @@ int main(int argc, char *argv[]){
     //close file
     fclose(fp);
     printf("dimension: %d", dimension_m);
+
     //Fill Distance Matrix
     distance_m = create_distance_matrix(cities, dimension);
-    printf("dimension between 1 and 2 is: %f", distance_m[0][1]);
+
+    //printf("dimension between 1 and 2 is: %f", distance_m[0][1]);
     //Initialize a population;
     struct population* pop = malloc(sizeof(struct population));
     pop->population_count = 50;
@@ -191,8 +220,16 @@ int main(int argc, char *argv[]){
     //Initialize half of the population randomly
     initialize_randomly(pop, cities, 0.5);
     //struct city* tour = (struct city*)malloc( 280 * sizeof(struct city));
-    //initialize_with_nearest_neighbor(pop, cities, 0.5);
-
+    initialize_with_nearest_neighbor(pop, cities,distance_m, 0.5);
+    printf("pop 35 %d: ", pop->individuals[25].cities[0].city_id);
+    printf("pop 35 %d: ", pop->individuals[25].cities[1].city_id);
+    printf("pop 35 %d: ", pop->individuals[25].cities[2].city_id);
+    printf("pop 35 %d: ", pop->individuals[25].cities[3].city_id);
+    printf("pop 35 %d: ", pop->individuals[25].cities[4].city_id);
+    printf("pop 35 %d: ", pop->individuals[25].cities[5].city_id);
+    printf("pop 35 %d: ", pop->individuals[25].cities[6].city_id);
+    printf("pop 35 %d: ", pop->individuals[25].cities[7].city_id);
+    printf("pop 35 %d: ", pop->individuals[25].cities[8].city_id);
 
 
 
