@@ -60,8 +60,6 @@ float** create_distance_matrix(struct city* cities, int dimension){
 
 }
 
-
-
 void initialize_with_nearest_neighbor(struct population* pop, struct city* cities,float** distance_m, double percentage){
 
     int create_n_random = pop->population_count * percentage;
@@ -77,7 +75,7 @@ void initialize_with_nearest_neighbor(struct population* pop, struct city* citie
         head->val = random;
         head->next = NULL;
         node_t* last = head;
-        for(int j = 1; j< 279 ;j++){
+        for(int j = 1; j< 280 ;j++){
             int nearest_neighbor_distance= BIGINT;
             int nearest_neighbor=0;
             for(int x = 0; x < 280; ++x){
@@ -140,6 +138,17 @@ void initialize_randomly(struct population* pop, struct city* cities, double per
     }
 }
 
+float calculate_fitness(struct city* cities, float** distance_m, int dimension){
+    float fitness_value = 0;
+    for(int i = 0;i<dimension - 1;i++){
+        fitness_value = fitness_value + distance_m[cities[i].city_id][cities[i+1].city_id];
+       // printf("fitness value: %f", fitness_value);
+    }
+    fitness_value = fitness_value + distance_m[cities[279].city_id][cities[0].city_id];
+
+    return fitness_value;
+}
+
 int main(int argc, char *argv[]){
     //Parameters are set via arg
     int iteration_count = 0;
@@ -182,7 +191,7 @@ int main(int argc, char *argv[]){
     int dimension_m = 0;
     const char* section = (char*)malloc(20* sizeof(char));
     char* s_dimension = "DIMENSION:";
-    while ( ( fgets ( line, sizeof ( line), fp))) {
+    while ( ( fgets ( line, sizeof ( line), fp)) != NULL) {
         if(pass_first_lines++ < 6){
             if(sscanf ( line, "%s %d"
                     , section, &dimension) == 2) {
@@ -221,15 +230,9 @@ int main(int argc, char *argv[]){
     initialize_randomly(pop, cities, 0.5);
     //struct city* tour = (struct city*)malloc( 280 * sizeof(struct city));
     initialize_with_nearest_neighbor(pop, cities,distance_m, 0.5);
-    printf("pop 35 %d: ", pop->individuals[25].cities[0].city_id);
-    printf("pop 35 %d: ", pop->individuals[25].cities[1].city_id);
-    printf("pop 35 %d: ", pop->individuals[25].cities[2].city_id);
-    printf("pop 35 %d: ", pop->individuals[25].cities[3].city_id);
-    printf("pop 35 %d: ", pop->individuals[25].cities[4].city_id);
-    printf("pop 35 %d: ", pop->individuals[25].cities[5].city_id);
-    printf("pop 35 %d: ", pop->individuals[25].cities[6].city_id);
-    printf("pop 35 %d: ", pop->individuals[25].cities[7].city_id);
-    printf("pop 35 %d: ", pop->individuals[25].cities[8].city_id);
+
+    float fit = calculate_fitness(pop->individuals[30].cities, distance_m, 280);
+    printf("fitness value = %f", fit);
 
 
 
