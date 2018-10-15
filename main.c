@@ -13,6 +13,11 @@ typedef struct node {
     struct node * next;
 } node_t;
 
+struct offsprings{
+    struct city* offspring1;
+    struct city* offspring2;
+};
+
 struct city{
     int city_id;
     float x_coordinate;
@@ -149,39 +154,86 @@ float calculate_fitness(struct city* cities, float** distance_m, int dimension){
     return fitness_value;
 }
 
-struct city* perform_order_crossover(struct city* parent1, struct city* parent2, int length, int dimension){
-    struct city* child = malloc(dimension* sizeof(struct city));
-    srand(time(NULL));
-    int crossover_start = rand() % (139);
-    int crossover_end = crossover_start + dimension / 2;
+struct offsprings* perform_order_crossover(struct city* parent1, struct city* parent2, int length, int dimension){
 
-    //First copy subset from parent1
-    for(int i = crossover_start;i<=dimension/2;++i){
-        child[i] = parent1[i];
+    struct city* child1 = malloc(dimension* sizeof(struct city));
+    struct city* child2 = malloc(dimension* sizeof(struct city));
+
+    srand(time(NULL));
+//    int crossover_start = rand() % (dimension/2);
+//    int crossover_end = crossover_start + dimension / 2;
+    int crossover_start = 2;
+    int crossover_end = 6;
+
+    //First copy subset from parents to children
+    for(int i = crossover_start;i<crossover_end;++i){
+        child1[i] = parent2[i];
+        child2[i] = parent1[i];
     }
 
-    int added_city_count = dimension / 2;
-    int i = crossover_end;
-    while(added_city_count < dimension){
-        //Reaching the last element then return back of the list
-        if(i == dimension)
-            i = 0;
-        int found = 0;
+    for(int i = crossover_end; i< dimension; ++i){
+        int exists_in_subset = 0;
+        for(int i1 = crossover_start; i1 < crossover_end; ++i1){
+            if(parent2[i].city_id == child2[i1].city_id)
+                exists_in_subset = 1;
+        }
+        if(0 == exists_in_subset)
+            child2[i] = parent2[i];
 
-        for(int y = crossover_start; y<crossover_end; ++y){
-            if(parent2[i].city_id == child[y].city_id){
-                found = 1;
+        exists_in_subset = 0;
+        for(int i1 = crossover_start; i1 < crossover_end; ++i1){
+            if(parent1[i].city_id == child1[i1].city_id)
+                exists_in_subset = 1;
+        }
+        if(0 == exists_in_subset)
+            child1[i] = parent1[i];
+
+    }
+
+    int parent1_index = 0;
+    int parent2_index = 0;
+
+    for(int i = 0; i<dimension;++i){
+
+        for(int j = parent2_index;j<dimension;++j){
+            int exists_in_subset = 0;
+            for(int i1 = 0; i1 < dimension; ++i1){
+                if(parent2[j].city_id == child2[i1].city_id)
+                    exists_in_subset = 1;
+            }
+            if(0 == exists_in_subset && child2[i].city_id == 0){
+                child2[i] = parent2[j];
+                parent2_index = j;
                 break;
             }
         }
-
-        if(!found){
-            child[i] = parent2[i];
-        }
-        i++;
     }
 
-    return child;
+
+    for(int i = 0; i<dimension;++i){
+
+        for(int j = parent1_index;j<dimension;++j){
+            int exists_in_subset = 0;
+            for(int i1 = 0; i1 < dimension; ++i1){
+                if(parent1[j].city_id == child1[i1].city_id)
+                    exists_in_subset = 1;
+            }
+            if(0 == exists_in_subset && child1[i].city_id == 0){
+                child1[i] = parent1[j];
+                parent1_index = j;
+                break;
+            }
+        }
+    }
+
+    struct offsprings* offsprings = malloc(sizeof(struct offsprings));
+    offsprings->offspring1 = malloc(280* sizeof(struct city));
+    offsprings->offspring2 = malloc(280* sizeof(struct city));
+
+    offsprings->offspring1 = child1;
+    offsprings->offspring2 = child2;
+
+    return offsprings;
 }
 
 int main(int argc, char *argv[]){
@@ -266,9 +318,40 @@ int main(int argc, char *argv[]){
     //struct city* tour = (struct city*)malloc( 280 * sizeof(struct city));
     initialize_with_nearest_neighbor(pop, cities,distance_m, 0.5);
 
-    float fit = calculate_fitness(pop->individuals[30].cities, distance_m, 280);
-    printf("fitness value = %f", fit);
+//    float fit = calculate_fitness(pop->individuals[30].cities, distance_m, 280);
+//    printf("fitness value = %f", fit);
 
+    struct city* cities1 = malloc(9 * sizeof(struct city));
+    cities1[0].city_id = 1;
+    cities1[1].city_id = 2;
+    cities1[2].city_id = 3;
+    cities1[3].city_id = 4;
+    cities1[4].city_id = 5;
+    cities1[5].city_id = 6;
+    cities1[6].city_id = 7;
+    cities1[7].city_id = 8;
+    cities1[8].city_id = 9;
+
+    struct city* cities2 = malloc(9 * sizeof(struct city));
+    cities2[0].city_id = 5;
+    cities2[1].city_id = 7;
+    cities2[2].city_id = 4;
+    cities2[3].city_id = 9;
+    cities2[4].city_id = 1;
+    cities2[5].city_id = 3;
+    cities2[6].city_id = 6;
+    cities2[7].city_id = 2;
+    cities2[8].city_id = 8;
+
+    struct offsprings* off = perform_order_crossover(cities1, cities2, 0, 9);
+
+    for (int j = 0; j < 9; ++j) {
+        printf("%d ", off->offspring1[j].city_id);
+    }
+    printf("\n");
+    for (int j = 0; j < 9; ++j) {
+        printf("%d ", off->offspring2[j].city_id);
+    }
 
 
     return 0;
