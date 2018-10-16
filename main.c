@@ -13,6 +13,11 @@ typedef struct node {
     struct node * next;
 } node_t;
 
+struct next_legit_genes{
+    int next_of_first_parent;
+    int next_of_second_parent;
+};
+
 struct offsprings{
     struct city* offspring1;
     struct city* offspring2;
@@ -236,6 +241,85 @@ struct offsprings* perform_OX(struct city* parent1, struct city* parent2, int le
     return offsprings;
 }
 
+int is_next_legit(struct city* parent, struct city* child, int current_index, int dimension){
+
+    if(current_index  == dimension -1)
+        return 0;
+
+    int is_next_legit = 1;
+    int next = parent[current_index + 1].city_id;
+    for (int i = 0; i < dimension; ++i) {
+        if(next == child[i].city_id){
+            is_next_legit = 0;
+            break;
+        }
+    }
+
+    return is_next_legit;
+}
+struct next_legit_genes* find_next_legit_genes(struct city* parent1, struct city* parent2,int p1_index, int p2_index,int dimension,int child_size, struct city* offspring){
+
+    int index_in_first_parent_next = 0;
+    int index_in_second_parent_next = 0;
+
+    int is_next_legit_p1 = is_next_legit(parent1, offspring, p1_index, dimension);
+    int is_next_legit_p2 = is_next_legit(parent2, offspring, p2_index, dimension);
+
+    //Next node is none so find me legit one!
+    int found = 0;
+    if(0 == is_next_legit_p1){
+        for (int i = 1; i <=dimension; ++i) {
+            for(int i1 = 0;i1 < child_size + 1;++i1){
+                if(i == offspring[i1].city_id){
+                    found = 1;
+                    break;
+                }
+            }
+            if(0 == found){
+                for (int j = 0; j < dimension; ++j) {
+                    if(i == parent1[j].city_id){
+                        index_in_first_parent_next = j;
+                        index_in_second_parent_next  = p2_index + 1;
+                        break;
+                    }
+
+                }
+                break;
+            }
+            found = 0;
+        }
+    }else if(0 == is_next_legit_p2){
+        for (int i = 1; i <= dimension; ++i) {
+            for(int i1 = 0;i1 < child_size + 1;++i1){
+                if(i == offspring[i1].city_id){
+                    found = 1;
+                    break;
+                }
+            }
+            if(0 == found){
+                for (int j = 0; j < dimension; ++j) {
+                    if(i == parent2[j].city_id){
+                        index_in_second_parent_next = j;
+                        index_in_first_parent_next  = p1_index+ 1;
+                        break;
+                    }
+
+                }
+                break;
+            }
+            found = 0;
+        }
+    }else{
+        index_in_first_parent_next  = p1_index + 1;
+        index_in_second_parent_next  = p2_index + 1;
+    }
+
+    struct next_legit_genes* next = malloc(sizeof(struct next_legit_genes));
+    next->next_of_first_parent = index_in_first_parent_next;
+    next->next_of_second_parent = index_in_second_parent_next;
+
+    return next;
+}
 struct offsprings* perform_SCX(struct city* parent1, struct city* parent2, float** distance_m, int dimension){
 
     int size = 0;
@@ -252,12 +336,15 @@ struct offsprings* perform_SCX(struct city* parent1, struct city* parent2, float
 
         int index_in_first_parent = 0;
         int index_in_second_parent = 0;
+        int index_in_first_parent_next = 0;
+        int index_in_second_parent_next = 0;
 
         if(1 == last_added_from_parent){
             for (int i = 0; i < dimension; ++i) {
                 if(parent2[i].city_id == current_city_id){
                     index_in_second_parent = i;
                     index_in_first_parent = last_added_city_index;
+                    break;
                 }
             }
         }else{
@@ -265,34 +352,35 @@ struct offsprings* perform_SCX(struct city* parent1, struct city* parent2, float
                 if(parent1[i].city_id == current_city_id){
                     index_in_first_parent = i;
                     index_in_second_parent = last_added_city_index;
+                    break;
                 }
             }
         }
 
-        if(index_in_first_parent + 1 > dimension){
+        struct next_legit_genes* next_indexes = find_next_legit_genes(parent1, parent2, index_in_first_parent, index_in_second_parent, dimension, index, offspring);
 
-        }else if(index_in_second_parent + 1 > dimension){
+        index_in_first_parent_next = next_indexes->next_of_first_parent;
+        index_in_second_parent_next = next_indexes->next_of_second_parent;
 
-        }
+        free(next_indexes);
 
-
-        if(parent1[index_in_first_parent + 1].city_id == parent2[index_in_second_parent + 1].city_id){
-            offspring[index + 1] = parent1[index_in_first_parent + 1];
+        if(parent1[index_in_first_parent_next].city_id == parent2[index_in_second_parent_next].city_id){
+            offspring[index + 1] = parent1[index_in_first_parent_next];
             last_added_from_parent = 1;
-            last_added_city_index = index_in_first_parent + 1;
+            last_added_city_index = index_in_first_parent_next;
         }else{
-            cost_to_pick_from_p1 = distance_m[parent1[index_in_first_parent].city_id][parent1[index_in_first_parent + 1].city_id];
+            cost_to_pick_from_p1 = distance_m[parent1[index_in_first_parent].city_id - 1][parent1[index_in_first_parent_next].city_id - 1];
 
-            cost_to_pick_from_p2 = distance_m[parent2[index_in_second_parent].city_id][parent2[index_in_second_parent + 1].city_id];
+            cost_to_pick_from_p2 = distance_m[parent2[index_in_second_parent].city_id - 1][parent2[index_in_second_parent_next].city_id - 1];
 
-            if(cost_to_pick_from_p2 > cost_to_pick_from_p1){
-                offspring[index + 1] = parent2[index_in_second_parent + 1];
+            if(cost_to_pick_from_p2 < cost_to_pick_from_p1){
+                offspring[index + 1] = parent2[index_in_second_parent_next];
                 last_added_from_parent = 2;
-                last_added_city_index = index_in_second_parent + 1;
+                last_added_city_index = index_in_second_parent_next;
             }else{
-                offspring[index + 1] = parent1[index_in_first_parent + 1];
+                offspring[index + 1] = parent1[index_in_first_parent_next];
                 last_added_from_parent = 1;
-                last_added_city_index = index_in_first_parent + 1;
+                last_added_city_index = index_in_first_parent_next;
             }
         }
 
@@ -409,12 +497,18 @@ int main(int argc, char *argv[]){
     cities2[5].city_id = 5;
     cities2[6].city_id = 7;
 
+    float** distance_mm = malloc(7 * sizeof(float*));
+
+    for (int i = 0; i < dimension; i++) {
+        distance_mm[i] = malloc(7 * sizeof(float));
+    }
+
 
     //struct offsprings* off = perform_OX(cities1, cities2, 0, 9);
-    struct city* ofs = perform_SCX(cities1, cities2, dimension_m, 7);
+    struct city* ofs = perform_SCX(cities1, cities2, distance_mm, 7);
 
     for (int j = 0; j < 7; ++j) {
-        printf("%d ", ofs->city_id);
+        printf("%d ", ofs[j].city_id);
     }
 
 
@@ -427,3 +521,60 @@ int main(int argc, char *argv[]){
 
 
 }
+
+
+//distance_mm[0][0] = 9999;
+//distance_mm[0][1] = 75;
+//distance_mm[0][2] = 99;
+//distance_mm[0][3] = 9;
+//distance_mm[0][4] = 35;
+//distance_mm[0][5] = 63;
+//distance_mm[0][6] = 8;
+//
+//distance_mm[1][0] = 51;
+//distance_mm[1][1] = 9999;
+//distance_mm[1][2] = 86;
+//distance_mm[1][3] = 46;
+//distance_mm[1][4] = 88;
+//distance_mm[1][5] = 29;
+//distance_mm[1][6] = 20;
+//
+//distance_mm[2][0] = 100;
+//distance_mm[2][1] = 5;
+//distance_mm[2][2] = 9999;
+//distance_mm[2][3] = 16;
+//distance_mm[2][4] = 28;
+//distance_mm[2][5] = 35;
+//distance_mm[2][6] = 28;
+//
+//distance_mm[3][0] = 20;
+//distance_mm[3][1] = 45;
+//distance_mm[3][2] = 11;
+//distance_mm[3][3] = 9999;
+//distance_mm[3][4] = 59;
+//distance_mm[3][5] = 53;
+//distance_mm[3][6] = 49;
+//
+//distance_mm[4][0] = 86;
+//distance_mm[4][1] = 63;
+//distance_mm[4][2] = 33;
+//distance_mm[4][3] = 65;
+//distance_mm[4][4] = 9999;
+//distance_mm[4][5] = 76;
+//distance_mm[4][6] = 72;
+//
+//distance_mm[5][0] = 36;
+//distance_mm[5][1] = 53;
+//distance_mm[5][2] = 89;
+//distance_mm[5][3] = 31;
+//distance_mm[5][4] = 21;
+//distance_mm[5][5] = 9999;
+//distance_mm[5][6] = 52;
+//
+//distance_mm[6][0] = 58;
+//distance_mm[6][1] = 31;
+//distance_mm[6][2] = 43;
+//distance_mm[6][3] = 67;
+//distance_mm[6][4] = 52;
+//distance_mm[6][5] = 60;
+//distance_mm[6][6] = 9999;
