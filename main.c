@@ -154,7 +154,7 @@ float calculate_fitness(struct city* cities, float** distance_m, int dimension){
     return fitness_value;
 }
 
-struct offsprings* perform_order_crossover(struct city* parent1, struct city* parent2, int length, int dimension){
+struct offsprings* perform_OX(struct city* parent1, struct city* parent2, int length, int dimension){
 
     struct city* child1 = malloc(dimension* sizeof(struct city));
     struct city* child2 = malloc(dimension* sizeof(struct city));
@@ -234,6 +234,75 @@ struct offsprings* perform_order_crossover(struct city* parent1, struct city* pa
     offsprings->offspring2 = child2;
 
     return offsprings;
+}
+
+struct offsprings* perform_SCX(struct city* parent1, struct city* parent2, float** distance_m, int dimension){
+
+    int size = 0;
+    int index = 0;
+    int cost_to_pick_from_p2 = 0;
+    int cost_to_pick_from_p1 = 0;
+    struct city* offspring = malloc(dimension * sizeof(struct city));
+    offspring[0] = parent1[0];
+    int current_city_id = offspring[0].city_id;
+    int last_added_from_parent = 1;
+    int last_added_city_index = 0;
+
+    while(size < dimension - 1){
+
+        int index_in_first_parent = 0;
+        int index_in_second_parent = 0;
+
+        if(1 == last_added_from_parent){
+            for (int i = 0; i < dimension; ++i) {
+                if(parent2[i].city_id == current_city_id){
+                    index_in_second_parent = i;
+                    index_in_first_parent = last_added_city_index;
+                }
+            }
+        }else{
+            for (int i = 0; i < dimension; ++i) {
+                if(parent1[i].city_id == current_city_id){
+                    index_in_first_parent = i;
+                    index_in_second_parent = last_added_city_index;
+                }
+            }
+        }
+
+        if(index_in_first_parent + 1 > dimension){
+
+        }else if(index_in_second_parent + 1 > dimension){
+
+        }
+
+
+        if(parent1[index_in_first_parent + 1].city_id == parent2[index_in_second_parent + 1].city_id){
+            offspring[index + 1] = parent1[index_in_first_parent + 1];
+            last_added_from_parent = 1;
+            last_added_city_index = index_in_first_parent + 1;
+        }else{
+            cost_to_pick_from_p1 = distance_m[parent1[index_in_first_parent].city_id][parent1[index_in_first_parent + 1].city_id];
+
+            cost_to_pick_from_p2 = distance_m[parent2[index_in_second_parent].city_id][parent2[index_in_second_parent + 1].city_id];
+
+            if(cost_to_pick_from_p2 > cost_to_pick_from_p1){
+                offspring[index + 1] = parent2[index_in_second_parent + 1];
+                last_added_from_parent = 2;
+                last_added_city_index = index_in_second_parent + 1;
+            }else{
+                offspring[index + 1] = parent1[index_in_first_parent + 1];
+                last_added_from_parent = 1;
+                last_added_city_index = index_in_first_parent + 1;
+            }
+        }
+
+        current_city_id = offspring[index + 1].city_id;
+        index++;
+        size++;
+    }
+
+    return offspring;
+
 }
 
 int main(int argc, char *argv[]){
@@ -321,37 +390,33 @@ int main(int argc, char *argv[]){
 //    float fit = calculate_fitness(pop->individuals[30].cities, distance_m, 280);
 //    printf("fitness value = %f", fit);
 
-    struct city* cities1 = malloc(9 * sizeof(struct city));
+    struct city* cities1 = malloc(7 * sizeof(struct city));
     cities1[0].city_id = 1;
-    cities1[1].city_id = 2;
-    cities1[2].city_id = 3;
-    cities1[3].city_id = 4;
-    cities1[4].city_id = 5;
-    cities1[5].city_id = 6;
-    cities1[6].city_id = 7;
-    cities1[7].city_id = 8;
-    cities1[8].city_id = 9;
+    cities1[1].city_id = 5;
+    cities1[2].city_id = 7;
+    cities1[3].city_id = 3;
+    cities1[4].city_id = 6;
+    cities1[5].city_id = 4;
+    cities1[6].city_id = 2;
 
-    struct city* cities2 = malloc(9 * sizeof(struct city));
-    cities2[0].city_id = 5;
-    cities2[1].city_id = 7;
-    cities2[2].city_id = 4;
-    cities2[3].city_id = 9;
-    cities2[4].city_id = 1;
-    cities2[5].city_id = 3;
-    cities2[6].city_id = 6;
-    cities2[7].city_id = 2;
-    cities2[8].city_id = 8;
 
-    struct offsprings* off = perform_order_crossover(cities1, cities2, 0, 9);
+    struct city* cities2 = malloc(7 * sizeof(struct city));
+    cities2[0].city_id = 1;
+    cities2[1].city_id = 6;
+    cities2[2].city_id = 2;
+    cities2[3].city_id = 4;
+    cities2[4].city_id = 3;
+    cities2[5].city_id = 5;
+    cities2[6].city_id = 7;
 
-    for (int j = 0; j < 9; ++j) {
-        printf("%d ", off->offspring1[j].city_id);
+
+    //struct offsprings* off = perform_OX(cities1, cities2, 0, 9);
+    struct city* ofs = perform_SCX(cities1, cities2, dimension_m, 7);
+
+    for (int j = 0; j < 7; ++j) {
+        printf("%d ", ofs->city_id);
     }
-    printf("\n");
-    for (int j = 0; j < 9; ++j) {
-        printf("%d ", off->offspring2[j].city_id);
-    }
+
 
 
     return 0;
