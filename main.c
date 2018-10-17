@@ -393,6 +393,119 @@ struct offsprings* perform_SCX(struct city* parent1, struct city* parent2, float
 
 }
 
+void get_two_different_random_number(int* number1, int* number2, int dimension){
+
+     srand(time(NULL));
+
+    do {
+        *number1 = rand() % (dimension);
+        *number2 = rand() % (dimension);
+    }while(*number1 == *number2);
+
+}
+
+void perform_inversion_mutation(struct city* child,int dimension){
+
+    int* random1 = malloc(sizeof(int));
+    int* random2 = malloc(sizeof(int));
+    int first_random_gene = 0, second_random_gene = 0;
+
+    get_two_different_random_number(random1, random2, dimension);
+
+    if(random1 < random2){
+        first_random_gene = *random1;
+        second_random_gene = *random2;
+    }else{
+        first_random_gene = *random2;
+        second_random_gene = *random1;
+    }
+    free(random1);
+    free(random2);
+
+    first_random_gene = 1;
+    second_random_gene = 4;
+    struct city* temp = malloc(sizeof(struct city));
+
+    int head = first_random_gene, tail = second_random_gene;
+    while(head < tail){
+
+        *temp = child[head];
+        child[head] = child[tail];
+        child[tail] = *temp;
+
+        head++;
+        tail--;
+    }
+
+    free(temp);
+}
+
+void perform_swap_mutation(struct city* child,int dimension){
+
+    int* random1 = malloc(sizeof(int));
+    int* random2 = malloc(sizeof(int));
+    int first_random_gene = 0, second_random_gene = 0;
+
+    get_two_different_random_number(random1, random2, dimension);
+
+    if(random1 < random2){
+        first_random_gene = *random1;
+        second_random_gene = *random2;
+    }else{
+        first_random_gene = *random2;
+        second_random_gene = *random1;
+    }
+    free(random1);
+    free(random2);
+
+    struct city* temp = malloc(sizeof(struct city));
+     *temp = child[first_random_gene];
+    child[first_random_gene] = child[second_random_gene];
+    child[second_random_gene] = *temp;
+
+    free(temp);
+}
+
+void perform_Insert_mutation(struct city* child,int dimension){
+
+//    srand(time(NULL));
+//    int random1 = 0;
+//    int random2 = 0;
+//
+//    do {
+//         random1 = rand() % (dimension);
+//         random2 = rand() % (dimension);
+//    }while(random1 == random2);
+    int* random1 = malloc(sizeof(int));
+    int* random2 = malloc(sizeof(int));
+
+    get_two_different_random_number(random1, random2, dimension);
+    int first_random_gene = 0, second_random_gene = 0;
+
+    if(random1 < random2){
+        first_random_gene = *random1;
+        second_random_gene = *random2;
+    }else{
+        first_random_gene = *random2;
+        second_random_gene = *random1;
+    }
+    free(random1);
+    free(random2);
+
+    int intermediate_array_size = second_random_gene - first_random_gene - 1;
+
+    struct city* intermediate = malloc(intermediate_array_size* sizeof(struct city));
+
+    memcpy(intermediate, child + first_random_gene + 1, (intermediate_array_size * sizeof(struct city)));
+
+    memmove(child + first_random_gene + 1, child + second_random_gene, sizeof(struct city));
+
+    memcpy(child + first_random_gene + 2, intermediate, (intermediate_array_size * sizeof(struct city)));
+
+    free(intermediate);
+
+}
+
 int main(int argc, char *argv[]){
     //Parameters are set via arg
     int iteration_count = 0;
@@ -497,21 +610,36 @@ int main(int argc, char *argv[]){
     cities2[5].city_id = 5;
     cities2[6].city_id = 7;
 
-    float** distance_mm = malloc(7 * sizeof(float*));
+//    float** distance_mm = malloc(7 * sizeof(float*));
+//
+//    for (int i = 0; i < dimension; i++) {
+//        distance_mm[i] = malloc(7 * sizeof(float));
+//    }
+//
+//
+//    //struct offsprings* off = perform_OX(cities1, cities2, 0, 9);
+//    struct city* ofs = perform_SCX(cities1, cities2, distance_mm, 7);
+//
+//    for (int j = 0; j < 7; ++j) {
+//        printf("%d ", ofs[j].city_id);
+//    }
 
-    for (int i = 0; i < dimension; i++) {
-        distance_mm[i] = malloc(7 * sizeof(float));
+    struct city* cities3 = malloc(9 * sizeof(struct city));
+    cities3[0].city_id = 1;
+    cities3[1].city_id = 2;
+    cities3[2].city_id = 3;
+    cities3[3].city_id = 4;
+    cities3[4].city_id = 5;
+    cities3[5].city_id = 6;
+    cities3[6].city_id = 7;
+    cities3[7].city_id = 8;
+    cities3[8].city_id = 9;
+
+    perform_inversion_mutation(cities3, 9);
+
+        for (int j = 0; j < 9; ++j) {
+        printf(" insert mutation %d \n", cities3[j].city_id);
     }
-
-
-    //struct offsprings* off = perform_OX(cities1, cities2, 0, 9);
-    struct city* ofs = perform_SCX(cities1, cities2, distance_mm, 7);
-
-    for (int j = 0; j < 7; ++j) {
-        printf("%d ", ofs[j].city_id);
-    }
-
-
 
     return 0;
 
