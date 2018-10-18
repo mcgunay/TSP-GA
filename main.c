@@ -40,6 +40,22 @@ struct population{
     int population_count;
 };
 
+int get_one_random_number(int dimension){
+
+    time_t t;
+
+    /* Intializes random number generator */
+    srand((unsigned) time(&t));
+
+    //srand(time(NULL));
+    int i = 0;
+
+    i = rand() % dimension - 1;
+    return i;
+
+
+}
+
 float calculate_distance(struct city* city1, struct city* city2){
 
     int x_distance = abs(city1->x_coordinate - city2->x_coordinate);
@@ -75,9 +91,9 @@ void initialize_with_nearest_neighbor(struct population* pop, struct city* citie
 
     int create_n_random = pop->population_count * percentage;
     //srand(time(NULL));
-
+    int random = 0;
     for(int i = 25; i< 25 + create_n_random; ++i){
-        int random = get_one_random_number(dimension);
+        random = get_one_random_number(dimension);
         //Put first random city in the list
         pop->individuals[i].cities[0] = cities[random];
 
@@ -160,7 +176,7 @@ float calculate_fitness(struct city* cities, float** distance_m, int dimension){
     return fitness_value;
 }
 
-
+//TODO length will be random not half
 struct offsprings* perform_OX(struct city* parent1, struct city* parent2, int length, int dimension){
 
     struct city* child1 = malloc(dimension* sizeof(struct city));
@@ -260,6 +276,24 @@ int is_next_legit(struct city* parent, struct city* child, int current_index, in
     }
 
     return is_next_legit;
+}
+
+int* get_n_different_numbers(int *buffer, size_t size){
+
+
+}
+
+struct city* perform_tournament(struct population* pop,size_t tournament_size){
+
+    int random_individual = 0;
+    struct individual tournament[tournament_size];
+    int picked_numbers[tournament_size];
+    for (int i = 0; i < pop->population_count; ++i) {
+        random_individual = get_n_different_numbers(pop->population_count);
+
+        tournament[i] = pop->individuals[random_individual];
+        picked_numbers[i] = random_individual;
+    }
 }
 struct next_legit_genes* find_next_legit_genes(struct city* parent1, struct city* parent2,int p1_index, int p2_index,int dimension,int child_size, struct city* offspring){
 
@@ -408,21 +442,7 @@ void get_two_different_random_number(int* number1, int* number2, int dimension){
 
 }
 
-int* get_one_random_number(int dimension){
 
-    time_t t;
-
-    /* Intializes random number generator */
-    srand((unsigned) time(&t));
-
-    //srand(time(NULL));
-    int* i = malloc(sizeof(int));
-
-    *i = rand() % dimension;
-    return i;
-
-
-}
 void perform_inversion_mutation(struct city* child,int dimension){
 
     int* random1 = malloc(sizeof(int));
@@ -659,9 +679,9 @@ int main(int argc, char *argv[]){
 //        for (int j = 0; j < 9; ++j) {
 //        printf(" insert mutation %d \n", cities3[j].city_id);
 //    }
-
-        int* random = get_one_random_number(7);
-        printf("random number from funcfiton %d", *random);
+        int random = get_one(7);
+        //int* random = get_one_random_number(7);
+        printf("random number from funcfiton %d", random);
 
     return 0;
 
