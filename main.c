@@ -3,6 +3,7 @@
 #include <math.h>
 #include <time.h>
 #include <string.h>
+#include <sys/time.h>
 
 const int BIGINT = 9999999;
 enum CrossOverType {OX = 0, SCX = 1};
@@ -70,13 +71,13 @@ float** create_distance_matrix(struct city* cities, int dimension){
 
 }
 
-void initialize_with_nearest_neighbor(struct population* pop, struct city* cities,float** distance_m, double percentage){
+void initialize_with_nearest_neighbor(struct population* pop, struct city* cities,float** distance_m,int dimension, double percentage){
 
     int create_n_random = pop->population_count * percentage;
-    srand(time(NULL));
+    //srand(time(NULL));
 
     for(int i = 25; i< 25 + create_n_random; ++i){
-        int random = rand() % 280;
+        int random = get_one_random_number(dimension);
         //Put first random city in the list
         pop->individuals[i].cities[0] = cities[random];
 
@@ -88,7 +89,7 @@ void initialize_with_nearest_neighbor(struct population* pop, struct city* citie
         for(int j = 1; j< 280 ;j++){
             int nearest_neighbor_distance= BIGINT;
             int nearest_neighbor=0;
-            for(int x = 0; x < 280; ++x){
+            for(int x = 0; x < dimension; ++x){
                 int picked = 0;
                 if(distance_m[random][x] < nearest_neighbor_distance){
                     node_t * current = head;
@@ -120,7 +121,7 @@ void initialize_with_nearest_neighbor(struct population* pop, struct city* citie
 void initialize_randomly(struct population* pop, struct city* cities, double percentage){
 
     int create_n_random = pop->population_count * percentage;
-    srand(time(NULL));
+    //srand(time(NULL));
 
     for(int i = 0; i< create_n_random; i++){
         //int random = rand() % 280;
@@ -132,7 +133,7 @@ void initialize_randomly(struct population* pop, struct city* cities, double per
 
         for (int i = 280-1; i >= 0; --i){
             //generate a random number [0, n-1]
-            int j = rand() % (i + 1);
+            int j = get_one_random_number(i + 1);
 
             //swap the last element with element at random index
             int temp = r[i];
@@ -159,14 +160,17 @@ float calculate_fitness(struct city* cities, float** distance_m, int dimension){
     return fitness_value;
 }
 
+
 struct offsprings* perform_OX(struct city* parent1, struct city* parent2, int length, int dimension){
 
     struct city* child1 = malloc(dimension* sizeof(struct city));
     struct city* child2 = malloc(dimension* sizeof(struct city));
 
-    srand(time(NULL));
-//    int crossover_start = rand() % (dimension/2);
-//    int crossover_end = crossover_start + dimension / 2;
+    //srand(time(NULL));
+//    int crossover_start = get_one_random_number(dimension);
+//
+//    int crossover_end = get_one_random_number(dimension - crossover_start);
+
     int crossover_start = 2;
     int crossover_end = 6;
 
@@ -404,6 +408,21 @@ void get_two_different_random_number(int* number1, int* number2, int dimension){
 
 }
 
+int* get_one_random_number(int dimension){
+
+    time_t t;
+
+    /* Intializes random number generator */
+    srand((unsigned) time(&t));
+
+    //srand(time(NULL));
+    int* i = malloc(sizeof(int));
+
+    *i = rand() % dimension;
+    return i;
+
+
+}
 void perform_inversion_mutation(struct city* child,int dimension){
 
     int* random1 = malloc(sizeof(int));
@@ -586,7 +605,7 @@ int main(int argc, char *argv[]){
     //Initialize half of the population randomly
     initialize_randomly(pop, cities, 0.5);
     //struct city* tour = (struct city*)malloc( 280 * sizeof(struct city));
-    initialize_with_nearest_neighbor(pop, cities,distance_m, 0.5);
+    initialize_with_nearest_neighbor(pop, cities,distance_m, dimension, 0.5);
 
 //    float fit = calculate_fitness(pop->individuals[30].cities, distance_m, 280);
 //    printf("fitness value = %f", fit);
@@ -635,11 +654,14 @@ int main(int argc, char *argv[]){
     cities3[7].city_id = 8;
     cities3[8].city_id = 9;
 
-    perform_inversion_mutation(cities3, 9);
+//    perform_inversion_mutation(cities3, 9);
+//
+//        for (int j = 0; j < 9; ++j) {
+//        printf(" insert mutation %d \n", cities3[j].city_id);
+//    }
 
-        for (int j = 0; j < 9; ++j) {
-        printf(" insert mutation %d \n", cities3[j].city_id);
-    }
+        int* random = get_one_random_number(7);
+        printf("random number from funcfiton %d", *random);
 
     return 0;
 
