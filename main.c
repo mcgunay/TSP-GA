@@ -3,7 +3,7 @@
 #include <math.h>
 #include <time.h>
 #include <string.h>
-#include <sys/time.h>
+#include <sodium.h>
 
 const int BIGINT = 9999999;
 enum CrossOverType {OX = 0, SCX = 1};
@@ -40,19 +40,54 @@ struct population{
     int population_count;
 };
 
-int get_one_random_number(int dimension){
+uint32_t get_one_random_number(int dimension){
 
-    time_t t;
+    char myString[32];
+    uint32_t myInt;
+    if (sodium_init() < 0) {
+        /* panic! the library couldn't be initialized, it is not safe to use */
+        return 1;
+    }
+    /* myString will be an array of 32 random bytes, not null-terminated */
+    randombytes_buf(myString, 32);
+    //const unsigned char seed[randombytes_SEEDBYTES] = {"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"};
+    //randombytes_buf_deterministic(myString, randombytes_SEEDBYTES, seed);
 
-    /* Intializes random number generator */
-    srand((unsigned) time(&t));
+    /* myInt will be a random number between 0 and 9 */
+    return randombytes_uniform(dimension);
+}
+
+void get_two_different_random_number(int* number1, int* number2, int dimension){
+
+    //srand(time(NULL));
+
+    do {
+        *number1 = get_one_random_number(dimension);
+        *number2 = get_one_random_number(dimension);
+    }while(*number1 == *number2);
+
+}
+
+void get_n_different_random_number(int* numbers, size_t size, int dimension){
 
     //srand(time(NULL));
     int i = 0;
+    int number = 0;
 
-    i = rand() % dimension - 1;
-    return i;
-
+    while(i < size){
+        int exist = 0;
+        do{
+            exist = 0;
+            number = get_one_random_number(dimension);
+            for (int j = 0; j < i; ++j) {
+                if(number == numbers[j])
+                    exist = 1;
+            }
+        }while(exist == 1);
+        exist = 0;
+        numbers[i] = number;
+        i++;
+    }
 
 }
 
@@ -61,6 +96,15 @@ float calculate_distance(struct city* city1, struct city* city2){
     int x_distance = abs(city1->x_coordinate - city2->x_coordinate);
     int y_distance = abs(city1->y_coordinate - city2->y_coordinate);
     float distance = sqrt( (x_distance*x_distance) + (y_distance*y_distance) );
+
+    return distance;
+}
+
+double calculate_distance_int(struct city* city1, struct city* city2){
+
+    int x_distance = abs(city1->x_coordinate - city2->x_coordinate);
+    int y_distance = abs(city1->y_coordinate - city2->y_coordinate);
+    double distance = sqrt( (x_distance*x_distance) + (y_distance*y_distance) );
 
     return distance;
 }
@@ -87,6 +131,28 @@ float** create_distance_matrix(struct city* cities, int dimension){
 
 }
 
+double** create_distance_matrix_int(struct city* cities, int dimension){
+    double** distance_m = malloc(dimension * sizeof(double*));
+
+    for (int i = 0; i < dimension; i++) {
+        distance_m[i] = malloc(dimension * sizeof(double));
+
+        for (int j = 0; j < dimension; j++) {
+
+            if (i == j) {
+                distance_m[i][j] = BIGINT;
+                continue;
+            }
+
+            //float tmp = (float) (pow((double) cities[i][0] - c[j][0], 2.0) + pow((double) c[i][1] - c[j][1], 2.0));
+            distance_m[i][j] = calculate_distance(&cities[i], &cities[j]);
+        }
+    }
+
+    return distance_m;
+
+}
+
 void initialize_with_nearest_neighbor(struct population* pop, struct city* cities,float** distance_m,int dimension, double percentage){
 
     int create_n_random = pop->population_count * percentage;
@@ -95,7 +161,8 @@ void initialize_with_nearest_neighbor(struct population* pop, struct city* citie
     for(int i = 25; i< 25 + create_n_random; ++i){
         random = get_one_random_number(dimension);
         //Put first random city in the list
-        pop->individuals[i].cities[0] = cities[random];
+        //pop->individuals[i].cities[0] = cities[random];
+        memcpy(&pop->individuals[i].cities[0], &cities[random], sizeof(struct city));
 
         node_t * head = NULL;
         head = malloc(sizeof(node_t));
@@ -122,7 +189,9 @@ void initialize_with_nearest_neighbor(struct population* pop, struct city* citie
 
                 }
             }
-            pop->individuals[i].cities[j] = cities[nearest_neighbor];
+            //pop->individuals[i].cities[j] = cities[nearest_neighbor];
+            memcpy(&pop->individuals[i].cities[j], &cities[nearest_neighbor], sizeof(struct city));
+
             random = nearest_neighbor;
             node_t* next = malloc(sizeof(node_t));
             next->val = nearest_neighbor;
@@ -131,7 +200,18 @@ void initialize_with_nearest_neighbor(struct population* pop, struct city* citie
             last = next;
 
         }
+
+
+        node_t * tmp;
+
+        while (head != NULL) {
+            tmp = head;
+            head = head->next;
+            free(tmp);
+
+        }
     }
+
 }
 
 void initialize_randomly(struct population* pop, struct city* cities, double percentage){
@@ -158,7 +238,8 @@ void initialize_randomly(struct population* pop, struct city* cities, double per
         }
 
         for(int j = 0; j< 280 ;j++){
-            pop->individuals[i].cities[j] = cities[r[j]];
+            memcpy(&pop->individuals[i].cities[j], &cities[r[j]], sizeof(struct city));
+            //pop->individuals[i].cities[j] = cities[r[j]];//TODO check this seems not correct
 
         }
         free(r);
@@ -168,33 +249,45 @@ void initialize_randomly(struct population* pop, struct city* cities, double per
 float calculate_fitness(struct city* cities, float** distance_m, int dimension){
     float fitness_value = 0;
     for(int i = 0;i<dimension - 1;i++){
-        fitness_value = fitness_value + distance_m[cities[i].city_id][cities[i+1].city_id];
+        fitness_value = fitness_value + distance_m[cities[i].city_id - 1][cities[i+1].city_id - 1];
        // printf("fitness value: %f", fitness_value);
     }
-    fitness_value = fitness_value + distance_m[cities[279].city_id][cities[0].city_id];
+    fitness_value = fitness_value + distance_m[cities[dimension - 1].city_id - 1][cities[0].city_id - 1];
+
+    return fitness_value;
+}
+double calculate_fitness_int(struct city* cities, double** distance_m, int dimension){
+    double fitness_value = 0;
+    for(int i = 0;i<dimension - 1;i++){
+        fitness_value = fitness_value + distance_m[cities[i].city_id - 1][cities[i+1].city_id - 1];
+        // printf("fitness value: %f", fitness_value);
+    }
+    fitness_value = fitness_value + distance_m[cities[dimension - 1].city_id - 1][cities[0].city_id - 1];
 
     return fitness_value;
 }
 
-//TODO length will be random not half
-struct offsprings* perform_OX(struct city* parent1, struct city* parent2, int length, int dimension){
+struct city** perform_OX(struct city *parent1, struct city *parent2, int dimension) {
 
-    struct city* child1 = malloc(dimension* sizeof(struct city));
-    struct city* child2 = malloc(dimension* sizeof(struct city));
+    struct city* child1 = calloc(dimension, sizeof(struct city));
+    struct city* child2 = calloc(dimension, sizeof(struct city));
 
-    //srand(time(NULL));
-//    int crossover_start = get_one_random_number(dimension);
-//
-//    int crossover_end = get_one_random_number(dimension - crossover_start);
+    int crossover_start = get_one_random_number(dimension);
 
-    int crossover_start = 2;
-    int crossover_end = 6;
+    int crossover_end = get_one_random_number(dimension - crossover_start) + crossover_start;
+
+
+//    memset(child1,0,dimension* sizeof(struct city));
+//    memset(child2,0,dimension* sizeof(struct city));
 
     //First copy subset from parents to children
     for(int i = crossover_start;i<crossover_end;++i){
-        child1[i] = parent2[i];
-        child2[i] = parent1[i];
+        memcpy(&child1[i], &parent2[i], sizeof(struct city));
+        memcpy(&child2[i], &parent1[i], sizeof(struct city));
+//        child1[i] = parent2[i];
+//        child2[i] = parent1[i];
     }
+
 
     for(int i = crossover_end; i< dimension; ++i){
         int exists_in_subset = 0;
@@ -203,7 +296,7 @@ struct offsprings* perform_OX(struct city* parent1, struct city* parent2, int le
                 exists_in_subset = 1;
         }
         if(0 == exists_in_subset)
-            child2[i] = parent2[i];
+            memcpy(&child2[i], &parent2[i], sizeof(struct city));
 
         exists_in_subset = 0;
         for(int i1 = crossover_start; i1 < crossover_end; ++i1){
@@ -211,7 +304,7 @@ struct offsprings* perform_OX(struct city* parent1, struct city* parent2, int le
                 exists_in_subset = 1;
         }
         if(0 == exists_in_subset)
-            child1[i] = parent1[i];
+            memcpy(&child1[i], &parent1[i], sizeof(struct city));
 
     }
 
@@ -219,46 +312,60 @@ struct offsprings* perform_OX(struct city* parent1, struct city* parent2, int le
     int parent2_index = 0;
 
     for(int i = 0; i<dimension;++i){
-
-        for(int j = parent2_index;j<dimension;++j){
-            int exists_in_subset = 0;
-            for(int i1 = 0; i1 < dimension; ++i1){
-                if(parent2[j].city_id == child2[i1].city_id)
-                    exists_in_subset = 1;
-            }
-            if(0 == exists_in_subset && child2[i].city_id == 0){
-                child2[i] = parent2[j];
-                parent2_index = j;
-                break;
+        if(0 == child2[i].city_id){
+            for(int j = parent2_index;j<dimension;++j){
+                int exists_in_subset = 0;
+                for(int i1 = 0; i1 < dimension; ++i1){
+                    if(parent2[j].city_id == child2[i1].city_id)
+                        exists_in_subset = 1;
+                }
+                if(0 == exists_in_subset){
+                    memcpy(&child2[i], &parent2[j], sizeof(struct city));
+                    //child2[i] = parent2[j];
+                    parent2_index = j;
+                    break;
+                }
             }
         }
-    }
 
+    }
 
     for(int i = 0; i<dimension;++i){
-
-        for(int j = parent1_index;j<dimension;++j){
-            int exists_in_subset = 0;
-            for(int i1 = 0; i1 < dimension; ++i1){
-                if(parent1[j].city_id == child1[i1].city_id)
-                    exists_in_subset = 1;
-            }
-            if(0 == exists_in_subset && child1[i].city_id == 0){
-                child1[i] = parent1[j];
-                parent1_index = j;
-                break;
+        if(0 == child1[i].city_id){
+            for(int j = parent1_index;j<dimension;++j){
+                int exists_in_subset = 0;
+                for(int i1 = 0; i1 < dimension; ++i1){
+                    if(parent1[j].city_id == child1[i1].city_id)
+                        exists_in_subset = 1;
+                }
+                if(0 == exists_in_subset){
+                    memcpy(&child1[i], &parent1[j], sizeof(struct city));
+                    //child1[i] = parent1[j];
+                    parent1_index = j;
+                    break;
+                }
             }
         }
+
     }
 
-    struct offsprings* offsprings = malloc(sizeof(struct offsprings));
-    offsprings->offspring1 = malloc(280* sizeof(struct city));
-    offsprings->offspring2 = malloc(280* sizeof(struct city));
-
-    offsprings->offspring1 = child1;
-    offsprings->offspring2 = child2;
-
-    return offsprings;
+//    struct offsprings* offsprings = malloc(sizeof(struct offsprings));
+//    offsprings->offspring1 = malloc(280* sizeof(struct city));
+//    offsprings->offspring2 = malloc(280* sizeof(struct city));
+//
+//    offsprings->offspring1 = child1;
+//    offsprings->offspring2 = child2;
+     struct city** childeren = malloc(2 * sizeof(struct city*));
+    childeren[0] = calloc(dimension, sizeof(struct city));
+    childeren[1] = calloc(dimension, sizeof(struct city));
+//    memset(childeren[0],0,dimension* sizeof(struct city));
+//    memset(childeren[1],0,dimension* sizeof(struct city));
+    memcpy(&childeren[0][0], child1,  dimension *sizeof(struct city));
+    memcpy(&childeren[1][0], child2,  dimension *sizeof(struct city));
+    free(child1);
+    free(child2);
+//
+    return childeren;
 }
 
 int is_next_legit(struct city* parent, struct city* child, int current_index, int dimension){
@@ -278,23 +385,30 @@ int is_next_legit(struct city* parent, struct city* child, int current_index, in
     return is_next_legit;
 }
 
-int* get_n_different_numbers(int *buffer, size_t size){
 
-
-}
-
-struct city* perform_tournament(struct population* pop,size_t tournament_size){
+void perform_tournament(struct population* pop,size_t tournament_size, size_t dimension, float** distance_m, int* picked_parent_index){
 
     int random_individual = 0;
     struct individual tournament[tournament_size];
     int picked_numbers[tournament_size];
-    for (int i = 0; i < pop->population_count; ++i) {
-        random_individual = get_n_different_numbers(pop->population_count);
+    int* random_numbers = malloc(tournament_size * sizeof(int));
+    get_n_different_random_number(random_numbers, tournament_size, pop->population_count);
 
-        tournament[i] = pop->individuals[random_individual];
-        picked_numbers[i] = random_individual;
+    float min_fitness = 99999;
+    int current_individual = 0;
+    for (int i = 0; i < tournament_size; ++i) {
+        float individual_fitness = calculate_fitness(pop->individuals[random_numbers[i]].cities, distance_m, dimension);
+        if(individual_fitness < min_fitness){
+            min_fitness = individual_fitness;
+            current_individual = random_numbers[i];
+        }
+
     }
+    free(random_numbers);
+    *picked_parent_index = current_individual;
+   // return pop->individuals[current_individual].cities;
 }
+
 struct next_legit_genes* find_next_legit_genes(struct city* parent1, struct city* parent2,int p1_index, int p2_index,int dimension,int child_size, struct city* offspring){
 
     int index_in_first_parent_next = 0;
@@ -358,13 +472,14 @@ struct next_legit_genes* find_next_legit_genes(struct city* parent1, struct city
 
     return next;
 }
-struct offsprings* perform_SCX(struct city* parent1, struct city* parent2, float** distance_m, int dimension){
+struct city** perform_SCX(struct city* parent1, struct city* parent2, float** distance_m, int dimension){
 
     int size = 0;
     int index = 0;
     int cost_to_pick_from_p2 = 0;
     int cost_to_pick_from_p1 = 0;
-    struct city* offspring = malloc(dimension * sizeof(struct city));
+    struct city* offspring = calloc(dimension , sizeof(struct city));
+    //memset(offspring,0,dimension* sizeof(struct city));
     offspring[0] = parent1[0];
     int current_city_id = offspring[0].city_id;
     int last_added_from_parent = 1;
@@ -427,21 +542,15 @@ struct offsprings* perform_SCX(struct city* parent1, struct city* parent2, float
         size++;
     }
 
-    return offspring;
+    struct city** childeren = malloc(1 * sizeof(struct city));
+    childeren[0] = calloc(dimension, sizeof(struct city));
+    //memset(childeren[0],0,dimension* sizeof(struct city));
+    memcpy(&childeren[0][0], offspring,  dimension *sizeof(struct city));
+    free(offspring);
+
+    return childeren;
 
 }
-
-void get_two_different_random_number(int* number1, int* number2, int dimension){
-
-     srand(time(NULL));
-
-    do {
-        *number1 = rand() % (dimension);
-        *number2 = rand() % (dimension);
-    }while(*number1 == *number2);
-
-}
-
 
 void perform_inversion_mutation(struct city* child,int dimension){
 
@@ -461,8 +570,8 @@ void perform_inversion_mutation(struct city* child,int dimension){
     free(random1);
     free(random2);
 
-    first_random_gene = 1;
-    second_random_gene = 4;
+    /*first_random_gene = 1;
+    second_random_gene = 4;*/
     struct city* temp = malloc(sizeof(struct city));
 
     int head = first_random_gene, tail = second_random_gene;
@@ -521,7 +630,7 @@ void perform_Insert_mutation(struct city* child,int dimension){
     get_two_different_random_number(random1, random2, dimension);
     int first_random_gene = 0, second_random_gene = 0;
 
-    if(random1 < random2){
+    if(*random1 < *random2){
         first_random_gene = *random1;
         second_random_gene = *random2;
     }else{
@@ -545,16 +654,146 @@ void perform_Insert_mutation(struct city* child,int dimension){
 
 }
 
+int find_worst_individual_index(struct population* pop, float** distance_m, size_t dimension){
+    float worst = 0;
+    int index = 0;
+    for (int i = 0; i < 50; ++i) {
+        int fit = calculate_fitness(pop->individuals[i].cities, distance_m, dimension);
+        if(fit > worst){
+            worst = fit;
+            index = i;
+        }
+
+
+    }
+
+    return index;
+}
+
+void replace_with_worst_individual(struct population* pop, struct city* child, float** distance_m, size_t dimension){
+    int worst = find_worst_individual_index(pop, distance_m, dimension);
+
+    memcpy(pop->individuals[worst].cities, child,  dimension *sizeof(struct city));
+
+}
+
+void replace_with_random_individual(struct population* pop, struct city* child, size_t dimension){
+    int random = get_one_random_number(pop->population_count);
+
+    memcpy(pop->individuals[random].cities, child,  dimension *sizeof(struct city));
+}
+
+int find_best_individual(struct population* pop,float** distance_m, size_t dimension){
+
+    float best = 99999999;
+    int index = 0;
+    for (int i = 0; i < pop->population_count; ++i) {
+        int fit = calculate_fitness(pop->individuals[i].cities, distance_m, dimension);
+        if(fit < best){
+            best = fit;
+            index = i;
+        }
+
+
+    }
+
+    return index;
+}
+
+void two_opt(struct city* individual,float** distance_m, int dimension){
+    int first_index = get_one_random_number(dimension);
+    int second_index = get_one_random_number(dimension - first_index);
+    second_index = first_index + second_index;
+//    if(*random_1 < random_2){
+//        first_index = *random_1;
+//        second_index = *random_2;
+//    }
+//    else{
+//        first_index = *random_2;
+//        second_index = *random_1;
+//    }
+    first_index = 2;
+    second_index = 7;
+
+    struct city* copy_of_individual = calloc(dimension, sizeof(struct city));
+    //memset(copy_of_individual, 0 , dimension* sizeof(struct city));
+    memcpy(copy_of_individual, individual, dimension * sizeof(struct city));
+
+
+    int intermediate_1_size = second_index - first_index - 1;
+
+    struct city* intermediate = malloc(intermediate_1_size* sizeof(struct city));
+
+    for (int i = 0; i < intermediate_1_size; ++i) {
+        memcpy(intermediate + i, copy_of_individual + second_index - i - 1, (sizeof(struct city)));
+
+    }
+
+    int intermediate_2_size = dimension - second_index - 1;
+
+    struct city* intermediate2 = malloc(intermediate_2_size* sizeof(struct city));
+
+    memcpy(intermediate2, copy_of_individual + second_index + 1, (intermediate_2_size * sizeof(struct city)));
+
+    memmove(copy_of_individual + first_index + 1, copy_of_individual + second_index, sizeof(struct city));
+    memmove(copy_of_individual + first_index + 2, intermediate, intermediate_1_size * sizeof(struct city));
+    memmove(copy_of_individual + first_index + 2 + intermediate_1_size, intermediate2, intermediate_2_size * sizeof(struct city));
+
+    int fitness_of_individual = calculate_fitness(individual, distance_m, dimension);
+    int fitness_of_new_tour = calculate_fitness(copy_of_individual, distance_m, dimension);
+
+    if(fitness_of_new_tour < fitness_of_individual)
+        memcpy(individual, copy_of_individual, dimension * sizeof(struct city));
+
+}
+
+void perform_2opt(struct population* pop, float** distance_m, size_t dimention, size_t n_times, size_t m_random_ind){
+
+    int best_individual = find_best_individual(pop, distance_m, dimention);
+    for (int k = 0; k < n_times; ++k) {
+        two_opt(pop->individuals[best_individual].cities,distance_m, dimention);
+
+    }
+
+    int random_individual = 0;
+    for (int i = 0; i < m_random_ind; ++i) {
+        do{
+            random_individual = get_one_random_number(dimention);
+        }while(random_individual == best_individual);
+
+        for (int j = 0; j < n_times; ++j) {
+            two_opt(pop->individuals[random_individual].cities,distance_m, dimention);
+        }
+    }
+
+}
+
+float calculate_average_fitness(struct population* pop, float** distance_m, size_t dimension){
+    float fitness = 0;
+    for (int i = 0; i < pop->population_count; ++i) {
+        fitness = fitness + calculate_fitness(pop->individuals[i].cities, distance_m, dimension);
+    }
+
+    return fitness / pop->population_count;
+
+
+}
+
 int main(int argc, char *argv[]){
+    printf("------------------------------\n");
+    printf("Experiment start\n");
+    printf("------------------------------\n");
+
+
     //Parameters are set via arg
-    int iteration_count = 0;
+    int iteration_count = 0, tournament_size = 0,  show_always = 0;
     enum CrossOverType xover_type;
     enum MutationType mutation_type;
 
     //variables to read from file
     FILE *fp;
     char line[200];
-    struct city* cities = (struct city*)malloc( 280 * sizeof(struct city));
+    struct city* cities;
     fp = fopen("../a280.tsp", "r"); // read mode
 
     if (fp == NULL)
@@ -564,10 +803,9 @@ int main(int argc, char *argv[]){
     }
 
     //Read arguments for algorithm
-    if(argc == 4){
+    if(argc == 6){
         if(argv[1] != NULL){
             sscanf(argv[1], "%d", &iteration_count);
-            printf("iteration count = %d", iteration_count);
         }
         if(argv[2] != NULL){
             sscanf(argv[2], "%d", &xover_type);
@@ -575,10 +813,37 @@ int main(int argc, char *argv[]){
         if(argv[3] != NULL){
             sscanf(argv[3], "%d", &mutation_type);
         }
-    }
+        if(argv[4] != NULL){
+            sscanf(argv[4], "%d", &tournament_size);
+        }
+        if(argv[5] != NULL){
+            sscanf(argv[5], "%d", &show_always);
+        }
+    } else
+        return 0;
+
+
+    printf("/-----------------------------------/\n");
+    printf("Arguments read from command line\n");
+    printf("/-----------------------------------/\n");
+
 
     //Distance Matrix
     float** distance_m;
+
+    //Random mutation
+    if(Random == mutation_type){
+        int rand = get_one_random_number(3);
+        mutation_type = rand;
+    }
+
+    const int mutation_rate = 0;
+//    //Crossover function pointer
+//    struct city* (*cross_over_function_ptr)(int);
+//    switch(xover_type){
+//        case  OX:
+//
+//    }
 
     //Pass cities to struct array
     int i = 0;
@@ -593,12 +858,14 @@ int main(int argc, char *argv[]){
                     , section, &dimension) == 2) {
                 if(strcmp(section,s_dimension) == 0){
                     dimension_m = dimension;
+                     cities = calloc( dimension , sizeof(struct city));
+
                 }
             }
             continue;
         }
 
-        struct city *n= (struct city*)malloc(sizeof(struct city));
+        struct city *n= calloc(1,sizeof(struct city));
 
         if ( ( sscanf ( line, "%d %f %f"
                 , &n->city_id, &n->x_coordinate, &n->y_coordinate)) == 3){
@@ -612,139 +879,186 @@ int main(int argc, char *argv[]){
 
     //Fill Distance Matrix
     distance_m = create_distance_matrix(cities, dimension);
-
+    double** dist_int = create_distance_matrix_int(cities, dimension);
     //printf("dimension between 1 and 2 is: %f", distance_m[0][1]);
     //Initialize a population;
-    struct population* pop = malloc(sizeof(struct population));
+    struct population* pop = calloc(1, sizeof(struct population));
     pop->population_count = 50;
-    pop->individuals = malloc(50 * sizeof(struct individual));
+    pop->individuals = calloc(50 , sizeof(struct individual));
     for(int i = 0; i < pop->population_count; i++){
-        pop->individuals[i].cities = malloc(280 * sizeof(struct city));
+        pop->individuals[i].cities = calloc(dimension , sizeof(struct city));
     }
 
     //Initialize half of the population randomly
     initialize_randomly(pop, cities, 0.5);
+
     //struct city* tour = (struct city*)malloc( 280 * sizeof(struct city));
     initialize_with_nearest_neighbor(pop, cities,distance_m, dimension, 0.5);
 
-//    float fit = calculate_fitness(pop->individuals[30].cities, distance_m, 280);
-//    printf("fitness value = %f", fit);
+    struct city* child1;
+    struct city* child2;
+    int child_count = 0;
+    if(OX == xover_type){
 
-    struct city* cities1 = malloc(7 * sizeof(struct city));
-    cities1[0].city_id = 1;
-    cities1[1].city_id = 5;
-    cities1[2].city_id = 7;
-    cities1[3].city_id = 3;
-    cities1[4].city_id = 6;
-    cities1[5].city_id = 4;
-    cities1[6].city_id = 2;
+         child_count = 2;
+    }else if(SCX == xover_type){
 
+         child_count = 1;
+    }
+    struct city* parent1;
+    struct city* parent2;
 
-    struct city* cities2 = malloc(7 * sizeof(struct city));
-    cities2[0].city_id = 1;
-    cities2[1].city_id = 6;
-    cities2[2].city_id = 2;
-    cities2[3].city_id = 4;
-    cities2[4].city_id = 3;
-    cities2[5].city_id = 5;
-    cities2[6].city_id = 7;
+//    struct city* cities2 = malloc(7 * sizeof(struct city));
+//    cities2[0].city_id = 1;
+//    cities2[1].city_id = 6;
+//    cities2[2].city_id = 2;
+//    cities2[3].city_id = 4;
+//    cities2[4].city_id = 3;
+//    cities2[5].city_id = 5;
+//    cities2[6].city_id = 7;
+//    struct city** off1 = perform_OX(cities1, cities2, 7);
+    fp = fopen("../a280.opt.tour", "r"); // read mode
+    struct city* opt = calloc( 280 , sizeof(struct city));
 
-//    float** distance_mm = malloc(7 * sizeof(float*));
+    if (fp == NULL)
+    {
+        perror("Error while opening the file.\n");
+        exit(EXIT_FAILURE);
+    }
+    pass_first_lines = 0;
+    i = 0;
+    while ( ( fgets ( line, sizeof ( line), fp)) != NULL) {
+        if(pass_first_lines++ < 4){
+            continue;
+        }
+
+        struct city *n= calloc(1,sizeof(struct city));
+
+        if ( ( sscanf ( line, "%d"
+                , &n->city_id )) == 1){
+            n->y_coordinate = 0;
+            n->x_coordinate = 0;
+            opt[i] = *n;
+            i++;
+        }
+    }
+    fclose(fp);
+    double asf = calculate_fitness_int(opt, dist_int, 280);
+    FILE *f = fopen("../a280tsp.txt", "a");
+
+    if (f == NULL)
+    {
+        printf("Error opening file!\n");
+        exit(1);
+    }
+    int best_before_experiment = find_best_individual(pop, distance_m, dimension);
+    int best_tour_before_exp = calculate_fitness(pop->individuals[best_tour_before_exp].cities, distance_m, dimension);
+    fprintf(f, "Best fitness before exp: %d \n", best_tour_before_exp);
+    fprintf(f, "Experiment with XOver: %d, mutation: %d, iteration: %d \n", xover_type, mutation_type, iteration_count);
+
+    int best_result = 0;
+    int average_result = 0;
+    int iter = 1;
+
+    while(iter <= iteration_count){
+        int* index_parent1 = malloc(sizeof(int));
+        int* index_parent2 = malloc(sizeof(int));
+
+        do{
+            perform_tournament(pop, tournament_size, dimension, distance_m, index_parent1);
+            perform_tournament(pop, tournament_size, dimension, distance_m, index_parent2);
+        }while(*index_parent1 == *index_parent2);
+
+       struct city** off;
+       if(OX == xover_type){
+
+           off = perform_OX(pop->individuals[*index_parent1].cities, pop->individuals[*index_parent2].cities, dimension);
+       }else if(SCX == xover_type){
+           off = perform_SCX(pop->individuals[*index_parent1].cities, pop->individuals[*index_parent2].cities, distance_m, dimension);
+       }
+
+       free(index_parent1);
+       free(index_parent2);
+       int mutation = get_one_random_number(9);
+       if(mutation <= mutation_rate){
+           printf("/-----------------------------/\n");
+           printf("mutation  iter: %d\n", iter);
+           printf("/-----------------------------/\n");
+           if(ISM == mutation_type){
+               for (int j = 0; j < child_count; ++j) {
+                   perform_Insert_mutation(&off[j][0], dimension);
+               }
+           }else if(IVM == mutation_type){
+               for (int j = 0; j < child_count; ++j) {
+                   perform_inversion_mutation(&off[j][0], dimension);
+               }
+           }else if(SM == mutation_type){
+               for (int j = 0; j < child_count; ++j) {
+                   perform_swap_mutation(&off[j][0], dimension);
+               }
+           }
+       }
+       int random_child = get_one_random_number(child_count);
+       replace_with_worst_individual(pop, off[random_child], distance_m, dimension);
+       if(child_count > 1)
+           replace_with_random_individual(pop, off[1 - random_child], dimension);
+
+       free(off[0]);
+       if(child_count > 1)
+        free(off[1]);
+
+       if(1 == show_always || (iter == 1000 || iter == 5000 || iter == 10000)){
+            int current_best = find_best_individual(pop, distance_m, dimension);
+            float current_best_fitness = calculate_fitness(pop->individuals[current_best].cities, distance_m, dimension);
+            float average = calculate_average_fitness(pop, distance_m, dimension);
+            fprintf(f, "/---------------------------------- /\n");
+            fprintf(f, "Iteration: %d \n", iter);
+            fprintf(f, "Best Tour: %f \n", current_best_fitness);
+            fprintf(f, "Average fitness: %f \n", average);
+            fprintf(f, "/---------------------------------- /\n");
+       }
+
+       iter++;
+    }
+
+    int best = find_best_individual(pop, distance_m, dimension);
+    float best_tour = calculate_fitness(pop->individuals[best].cities, distance_m, dimension);
+
+//    for (int i1 = 0; i1 < dimension; ++i1) {
+//        fprintf(f, "%d\n", pop->individuals[best].cities[i1].city_id);
 //
-//    for (int i = 0; i < dimension; i++) {
-//        distance_mm[i] = malloc(7 * sizeof(float));
 //    }
-//
-//
-//    //struct offsprings* off = perform_OX(cities1, cities2, 0, 9);
-//    struct city* ofs = perform_SCX(cities1, cities2, distance_mm, 7);
-//
-//    for (int j = 0; j < 7; ++j) {
-//        printf("%d ", ofs[j].city_id);
-//    }
+    fprintf(f, "/---------------------------------- /\n");
+    fprintf(f, "Experiment Finished\n");
+    fprintf(f, "Best tour: %f \n", best_tour);
+    fprintf(f, "/---------------------------------- /\n");
+    fclose(f);
 
-    struct city* cities3 = malloc(9 * sizeof(struct city));
-    cities3[0].city_id = 1;
-    cities3[1].city_id = 2;
-    cities3[2].city_id = 3;
-    cities3[3].city_id = 4;
-    cities3[4].city_id = 5;
-    cities3[5].city_id = 6;
-    cities3[6].city_id = 7;
-    cities3[7].city_id = 8;
-    cities3[8].city_id = 9;
+//    struct city* cities3 = malloc(9 * sizeof(struct city));
+//    cities3[0].city_id = 1;
+//    cities3[1].city_id = 2;
+//    cities3[2].city_id = 3;
+//    cities3[3].city_id = 4;
+//    cities3[4].city_id = 5;
+//    cities3[5].city_id = 6;
+//    cities3[6].city_id = 7;
+//    cities3[7].city_id = 8;
+//    cities3[8].city_id = 9;
+
 
 //    perform_inversion_mutation(cities3, 9);
 //
-//        for (int j = 0; j < 9; ++j) {
-//        printf(" insert mutation %d \n", cities3[j].city_id);
-//    }
-        int random = get_one(7);
+
+        //int random = get_one(7);
         //int* random = get_one_random_number(7);
-        printf("random number from funcfiton %d", random);
 
-    return 0;
-
-
-    printf("Hello, World!\n");
+    free(distance_m);
+    for(int i = 0; i < pop->population_count; i++){
+        free(pop->individuals[i].cities);
+    }
+    free(pop->individuals);
+    free(pop);
     return 0;
 
 
 }
-
-
-//distance_mm[0][0] = 9999;
-//distance_mm[0][1] = 75;
-//distance_mm[0][2] = 99;
-//distance_mm[0][3] = 9;
-//distance_mm[0][4] = 35;
-//distance_mm[0][5] = 63;
-//distance_mm[0][6] = 8;
-//
-//distance_mm[1][0] = 51;
-//distance_mm[1][1] = 9999;
-//distance_mm[1][2] = 86;
-//distance_mm[1][3] = 46;
-//distance_mm[1][4] = 88;
-//distance_mm[1][5] = 29;
-//distance_mm[1][6] = 20;
-//
-//distance_mm[2][0] = 100;
-//distance_mm[2][1] = 5;
-//distance_mm[2][2] = 9999;
-//distance_mm[2][3] = 16;
-//distance_mm[2][4] = 28;
-//distance_mm[2][5] = 35;
-//distance_mm[2][6] = 28;
-//
-//distance_mm[3][0] = 20;
-//distance_mm[3][1] = 45;
-//distance_mm[3][2] = 11;
-//distance_mm[3][3] = 9999;
-//distance_mm[3][4] = 59;
-//distance_mm[3][5] = 53;
-//distance_mm[3][6] = 49;
-//
-//distance_mm[4][0] = 86;
-//distance_mm[4][1] = 63;
-//distance_mm[4][2] = 33;
-//distance_mm[4][3] = 65;
-//distance_mm[4][4] = 9999;
-//distance_mm[4][5] = 76;
-//distance_mm[4][6] = 72;
-//
-//distance_mm[5][0] = 36;
-//distance_mm[5][1] = 53;
-//distance_mm[5][2] = 89;
-//distance_mm[5][3] = 31;
-//distance_mm[5][4] = 21;
-//distance_mm[5][5] = 9999;
-//distance_mm[5][6] = 52;
-//
-//distance_mm[6][0] = 58;
-//distance_mm[6][1] = 31;
-//distance_mm[6][2] = 43;
-//distance_mm[6][3] = 67;
-//distance_mm[6][4] = 52;
-//distance_mm[6][5] = 60;
-//distance_mm[6][6] = 9999;
