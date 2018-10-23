@@ -40,6 +40,13 @@ struct population{
     int population_count;
 };
 
+int get_one_random_number_deterministic(int dimension){
+    srand(1000u);
+
+    return rand() % dimension ;
+
+}
+
 uint32_t get_one_random_number(int dimension){
 
     char myString[32];
@@ -65,6 +72,13 @@ void get_two_different_random_number(int* number1, int* number2, int dimension){
         *number1 = get_one_random_number(dimension);
         *number2 = get_one_random_number(dimension);
     }while(*number1 == *number2);
+
+    if(*number1 > *number2){
+        int temp = *number1;
+        *number1 = *number2;
+        *number2 = temp;
+    }
+
 
 }
 
@@ -100,11 +114,13 @@ float calculate_distance(struct city* city1, struct city* city2){
     return distance;
 }
 
-double calculate_distance_int(struct city* city1, struct city* city2){
+float calculate_distance_int(struct city* city1, struct city* city2){
 
-    int x_distance = abs(city1->x_coordinate - city2->x_coordinate);
-    int y_distance = abs(city1->y_coordinate - city2->y_coordinate);
-    double distance = sqrt( (x_distance*x_distance) + (y_distance*y_distance) );
+    float x_distance = abs(city1->x_coordinate - city2->x_coordinate);
+    float y_distance = abs(city1->y_coordinate - city2->y_coordinate);
+    //double distance = sqrt( ((x_distance*x_distance) + (y_distance*y_distance) ) );
+    float distance = hypot(x_distance, y_distance);
+
 
     return distance;
 }
@@ -131,11 +147,11 @@ float** create_distance_matrix(struct city* cities, int dimension){
 
 }
 
-double** create_distance_matrix_int(struct city* cities, int dimension){
-    double** distance_m = malloc(dimension * sizeof(double*));
+float** create_distance_matrix_int(struct city* cities, int dimension){
+    float** distance_m = malloc(dimension * sizeof(float*));
 
     for (int i = 0; i < dimension; i++) {
-        distance_m[i] = malloc(dimension * sizeof(double));
+        distance_m[i] = malloc(dimension * sizeof(float));
 
         for (int j = 0; j < dimension; j++) {
 
@@ -145,7 +161,7 @@ double** create_distance_matrix_int(struct city* cities, int dimension){
             }
 
             //float tmp = (float) (pow((double) cities[i][0] - c[j][0], 2.0) + pow((double) c[i][1] - c[j][1], 2.0));
-            distance_m[i][j] = calculate_distance(&cities[i], &cities[j]);
+            distance_m[i][j] = calculate_distance_int(&cities[i], &cities[j]);
         }
     }
 
@@ -256,13 +272,13 @@ float calculate_fitness(struct city* cities, float** distance_m, int dimension){
 
     return fitness_value;
 }
-double calculate_fitness_int(struct city* cities, double** distance_m, int dimension){
-    double fitness_value = 0;
+float calculate_fitness_int(struct city* cities, float** distance_m, int dimension){
+    float fitness_value = 0;
     for(int i = 0;i<dimension - 1;i++){
-        fitness_value = fitness_value + distance_m[cities[i].city_id - 1][cities[i+1].city_id - 1];
+        fitness_value += distance_m[cities[i].city_id - 1][cities[i+1].city_id - 1];
         // printf("fitness value: %f", fitness_value);
     }
-    fitness_value = fitness_value + distance_m[cities[dimension - 1].city_id - 1][cities[0].city_id - 1];
+    fitness_value += distance_m[cities[dimension - 1].city_id - 1][cities[0].city_id - 1];
 
     return fitness_value;
 }
@@ -701,9 +717,10 @@ int find_best_individual(struct population* pop,float** distance_m, size_t dimen
 }
 
 void two_opt(struct city* individual,float** distance_m, int dimension){
-    int first_index = get_one_random_number(dimension);
-    int second_index = get_one_random_number(dimension - first_index);
-    second_index = first_index + second_index;
+    int* first_index = calloc(1, sizeof(int));
+    int* second_index = calloc(1, sizeof(int));
+    //second_index = first_index + second_index;
+    get_two_different_random_number(first_index, second_index, dimension);
 //    if(*random_1 < random_2){
 //        first_index = *random_1;
 //        second_index = *random_2;
@@ -712,38 +729,41 @@ void two_opt(struct city* individual,float** distance_m, int dimension){
 //        first_index = *random_2;
 //        second_index = *random_1;
 //    }
-    first_index = 2;
-    second_index = 7;
+
 
     struct city* copy_of_individual = calloc(dimension, sizeof(struct city));
     //memset(copy_of_individual, 0 , dimension* sizeof(struct city));
     memcpy(copy_of_individual, individual, dimension * sizeof(struct city));
 
 
-    int intermediate_1_size = second_index - first_index - 1;
+    int intermediate_1_size = *second_index - *first_index - 1;
 
-    struct city* intermediate = malloc(intermediate_1_size* sizeof(struct city));
+    struct city* intermediate = calloc(intermediate_1_size, sizeof(struct city));
 
     for (int i = 0; i < intermediate_1_size; ++i) {
-        memcpy(intermediate + i, copy_of_individual + second_index - i - 1, (sizeof(struct city)));
+        memcpy(intermediate + i, copy_of_individual + *second_index - i - 1, (sizeof(struct city)));
 
     }
 
-    int intermediate_2_size = dimension - second_index - 1;
+    int intermediate_2_size = dimension - *second_index - 1;
 
-    struct city* intermediate2 = malloc(intermediate_2_size* sizeof(struct city));
+    struct city* intermediate2 = calloc(intermediate_2_size, sizeof(struct city));
 
-    memcpy(intermediate2, copy_of_individual + second_index + 1, (intermediate_2_size * sizeof(struct city)));
+    memcpy(intermediate2, copy_of_individual + *second_index + 1, (intermediate_2_size * sizeof(struct city)));
 
-    memmove(copy_of_individual + first_index + 1, copy_of_individual + second_index, sizeof(struct city));
-    memmove(copy_of_individual + first_index + 2, intermediate, intermediate_1_size * sizeof(struct city));
-    memmove(copy_of_individual + first_index + 2 + intermediate_1_size, intermediate2, intermediate_2_size * sizeof(struct city));
+    memmove(copy_of_individual + *first_index + 1, copy_of_individual + *second_index, sizeof(struct city));
+    memmove(copy_of_individual + *first_index + 2, intermediate, intermediate_1_size * sizeof(struct city));
+    memmove(copy_of_individual + *first_index + 2 + intermediate_1_size, intermediate2, intermediate_2_size * sizeof(struct city));
 
     int fitness_of_individual = calculate_fitness(individual, distance_m, dimension);
     int fitness_of_new_tour = calculate_fitness(copy_of_individual, distance_m, dimension);
 
     if(fitness_of_new_tour < fitness_of_individual)
         memcpy(individual, copy_of_individual, dimension * sizeof(struct city));
+
+    free(intermediate);
+    free(intermediate2);
+    free(copy_of_individual);
 
 }
 
@@ -758,7 +778,7 @@ void perform_2opt(struct population* pop, float** distance_m, size_t dimention, 
     int random_individual = 0;
     for (int i = 0; i < m_random_ind; ++i) {
         do{
-            random_individual = get_one_random_number(dimention);
+            random_individual = get_one_random_number(pop->population_count);
         }while(random_individual == best_individual);
 
         for (int j = 0; j < n_times; ++j) {
@@ -784,9 +804,8 @@ int main(int argc, char *argv[]){
     printf("Experiment start\n");
     printf("------------------------------\n");
 
-
     //Parameters are set via arg
-    int iteration_count = 0, tournament_size = 0,  show_always = 0;
+    int iteration_count = 0, tournament_size = 0,  show_always = 0 ,k = 0, m = 0, n = 0;
     enum CrossOverType xover_type;
     enum MutationType mutation_type;
 
@@ -803,7 +822,7 @@ int main(int argc, char *argv[]){
     }
 
     //Read arguments for algorithm
-    if(argc == 6){
+    if(argc == 9){
         if(argv[1] != NULL){
             sscanf(argv[1], "%d", &iteration_count);
         }
@@ -818,6 +837,15 @@ int main(int argc, char *argv[]){
         }
         if(argv[5] != NULL){
             sscanf(argv[5], "%d", &show_always);
+        }
+        if(argv[6] != NULL){
+            sscanf(argv[6], "%d", &k);
+        }
+        if(argv[7] != NULL){
+            sscanf(argv[7], "%d", &m);
+        }
+        if(argv[8] != NULL){
+            sscanf(argv[8], "%d", &n);
         }
     } else
         return 0;
@@ -879,7 +907,7 @@ int main(int argc, char *argv[]){
 
     //Fill Distance Matrix
     distance_m = create_distance_matrix(cities, dimension);
-    double** dist_int = create_distance_matrix_int(cities, dimension);
+    float** dist_int = create_distance_matrix_int(cities, dimension);
     //printf("dimension between 1 and 2 is: %f", distance_m[0][1]);
     //Initialize a population;
     struct population* pop = calloc(1, sizeof(struct population));
@@ -894,6 +922,14 @@ int main(int argc, char *argv[]){
 
     //struct city* tour = (struct city*)malloc( 280 * sizeof(struct city));
     initialize_with_nearest_neighbor(pop, cities,distance_m, dimension, 0.5);
+
+//    int bes_after_init = find_best_individual(pop, distance_m, dimension);
+//    float cl = calculate_fitness(pop->individuals[bes_after_init].cities, distance_m, dimension);
+//    printf("best : %d \n", bes_after_init);
+//    printf("fitness : %f \n", cl);
+//    printf("first el : %d \n", pop->individuals[bes_after_init].cities[0]);
+//
+//    return  0;
 
     struct city* child1;
     struct city* child2;
@@ -943,7 +979,7 @@ int main(int argc, char *argv[]){
         }
     }
     fclose(fp);
-    double asf = calculate_fitness_int(opt, dist_int, 280);
+    float asf = calculate_fitness_int(opt, dist_int, 280);
     FILE *f = fopen("../a280tsp.txt", "a");
 
     if (f == NULL)
@@ -981,9 +1017,6 @@ int main(int argc, char *argv[]){
        free(index_parent2);
        int mutation = get_one_random_number(9);
        if(mutation <= mutation_rate){
-           printf("/-----------------------------/\n");
-           printf("mutation  iter: %d\n", iter);
-           printf("/-----------------------------/\n");
            if(ISM == mutation_type){
                for (int j = 0; j < child_count; ++j) {
                    perform_Insert_mutation(&off[j][0], dimension);
@@ -1006,6 +1039,10 @@ int main(int argc, char *argv[]){
        free(off[0]);
        if(child_count > 1)
         free(off[1]);
+
+       if(k != 0 && iter == k){
+           perform_2opt(pop, distance_m, dimension, n, m);
+       }
 
        if(1 == show_always || (iter == 1000 || iter == 5000 || iter == 10000)){
             int current_best = find_best_individual(pop, distance_m, dimension);
